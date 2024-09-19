@@ -1,0 +1,29 @@
+server:
+  port: 8080  # Le port de la Gateway
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://user-service  # Utilisation de Load Balancer avec Eureka
+          predicates:
+            - Path=/api/users/**
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/  # URL du serveur Eureka
+    fetch-registry: true
+    register-with-eureka: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
