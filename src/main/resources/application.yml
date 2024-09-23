@@ -8,6 +8,10 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: inventory-service
+          uri: lb://inventory-service  # Utilisation de Load Balancer avec Eureka
+          predicates:
+            - Path=/api/inventory/**
         - id: user-service
           uri: lb://user-service  # Utilisation de Load Balancer avec Eureka
           predicates:
