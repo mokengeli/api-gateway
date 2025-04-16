@@ -15,11 +15,15 @@ spring:
         - id: user-service
           uri: lb://user-service  # Utilisation de Load Balancer avec Eureka
           predicates:
-            - Path=/api/users/**
+            - Path=/api/user/**
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/api/auth/**
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/order/**
 
 eureka:
   client:
