@@ -1,10 +1,18 @@
 server:
   port: 8080  # Le port de la Gateway
-
+security:
+  cors:
+    allowed-origins: http://localhost:3000, http://localhost:3001, https://hideously-smart-llama.ngrok-free.app
 spring:
   application:
     name: api-gateway
-
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: GMT+01:00
+  jackson:
+    time-zone: GMT+01:00
   cloud:
     gateway:
       routes:
