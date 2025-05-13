@@ -10,7 +10,7 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn package -DskipTests
 
-# Extraction dynamique de la version du POM
+# Extraction dynamique de la version
 RUN APP_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout) \
     && echo "Version extraite: $APP_VERSION" \
     && cp target/api-gateway-$APP_VERSION.jar target/app.jar
@@ -20,21 +20,26 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Création d'un utilisateur non-root
-RUN addgroup --system javauser && adduser --system --ingroup javauser javauser
-USER javauser:javauser
+RUN addgroup --system appuser && adduser --system --ingroup appuser appuser
+USER appuser:appuser
 
-# Copie du JAR compilé (avec nom générique)
+# Copie du JAR compilé
 COPY --from=build /app/target/app.jar ./app.jar
+
+# Copie de tous les fichiers de configuration
+COPY src/main/resources/application*.yml ./config/
 
 # Exposer le port
 EXPOSE 8080
 
-# Variables d'environnement
+# Variables d'environnement REQUISES
 ENV SERVER_PORT="" \
     JWT_SECRET="" \
     ALLOWED_ORIGINS="" \
-    EUREKA_SERVER_URL="" \
-    TIME_ZONE="GMT+01:00" \
+    EUREKA_SERVER_URL=""
+
+# Variables d'environnement OPTIONNELLES
+ENV TIME_ZONE="GMT+01:00" \
     SESSION_CACHE_TTL="120" \
     CLOUD_GATEWAY_LOG_LEVEL="INFO" \
     PUBLIC_PATHS="public/**, /api/auth/login" \
@@ -43,8 +48,8 @@ ENV SERVER_PORT="" \
     AUTH_SERVICE_URL="lb://auth-service" \
     ORDER_SERVICE_URL="lb://order-service"
 
-# Point d'entrée simplifié
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Point d'entrée
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.location=file:./config/"]
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
