@@ -1,8 +1,18 @@
+session:
+  cache:
+    ttl-seconds: 120
+authentication:
+  service-id: auth-service   # nom du micro-service dans Eureka
+  scheme: http
 server:
   port: 8080  # Le port de la Gateway
 security:
   cors:
     allowed-origins: http://localhost:3000, http://localhost:3001, https://hideously-smart-llama.ngrok-free.app
+  jwt:
+    secret: 9a4f2c_8d3b7a1e6f#45c8a0b3f268b1d4e6-f3c8a9d2b5f8e3a9c8-b5f6v8a3d9A@
+    cookie:
+      access-token: "accessToken"
 spring:
   application:
     name: api-gateway
@@ -43,3 +53,6 @@ eureka:
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
+gateway:
+  public-paths: public/**, /api/auth/login
+
