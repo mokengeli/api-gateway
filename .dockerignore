@@ -1,0 +1,10 @@
+.git
+.github
+.gitignore
+README.md
+auth-service.json
+inventory-service.json
+order-service.json
+user-service.json
+target
+!target/api-gateway-*.jar

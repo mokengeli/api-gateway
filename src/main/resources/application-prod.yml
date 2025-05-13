@@ -1,0 +1,57 @@
+session:
+  cache:
+    ttl-seconds: ${SESSION_CACHE_TTL:120}
+authentication:
+  service-id: auth-service
+server:
+  port: ${SERVER_PORT}
+security:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS}
+  jwt:
+    secret: ${JWT_SECRET}
+    cookie:
+      access-token: "accessToken"
+spring:
+  application:
+    name: api-gateway
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: ${TIME_ZONE:GMT+01:00}
+  jackson:
+    time-zone: ${TIME_ZONE:GMT+01:00}
+  cloud:
+    gateway:
+      routes:
+        - id: inventory-service
+          uri: ${INVENTORY_SERVICE_URL:lb://inventory-service}
+          predicates:
+            - Path=/api/inventory/**
+        - id: user-service
+          uri: ${USER_SERVICE_URL:lb://user-service}
+          predicates:
+            - Path=/api/user/**
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:lb://auth-service}
+          predicates:
+            - Path=/api/auth/**
+        - id: order-service
+          uri: ${ORDER_SERVICE_URL:lb://order-service}
+          predicates:
+            - Path=/api/order/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL}
+    fetch-registry: true
+    register-with-eureka: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: ${LOG_LEVEL:INFO}
+
+gateway:
+  public-paths: ${PUBLIC_PATHS:public/**, /api/auth/login}

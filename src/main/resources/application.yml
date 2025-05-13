@@ -3,7 +3,6 @@ session:
     ttl-seconds: 120
 authentication:
   service-id: auth-service   # nom du micro-service dans Eureka
-  scheme: http
 server:
   port: 8080  # Le port de la Gateway
 security:
