@@ -48,7 +48,11 @@ eureka:
       defaultZone: http://localhost:8761/eureka/  # URL du serveur Eureka
     fetch-registry: true
     register-with-eureka: true
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
