@@ -2,7 +2,7 @@ session:
   cache:
     ttl-seconds: ${SESSION_CACHE_TTL:120}
 authentication:
-  service-id: auth-service
+  service-id: authentication-service
 server:
   port: ${SERVER_PORT}
 security:
@@ -33,8 +33,8 @@ spring:
           uri: ${USER_SERVICE_URL:lb://user-service}
           predicates:
             - Path=/api/user/**
-        - id: auth-service
-          uri: ${AUTH_SERVICE_URL:lb://auth-service}
+        - id: authentication-service
+          uri: ${AUTH_SERVICE_URL:lb://authentication-service}
           predicates:
             - Path=/api/auth/**
         - id: order-service

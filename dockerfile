@@ -46,7 +46,7 @@ ENV TIME_ZONE="GMT+01:00" \
     PUBLIC_PATHS="public/**, /api/auth/login" \
     INVENTORY_SERVICE_URL="lb://inventory-service" \
     USER_SERVICE_URL="lb://user-service" \
-    AUTH_SERVICE_URL="lb://auth-service" \
+    AUTH_SERVICE_URL="lb://authentication-service" \
     ORDER_SERVICE_URL="lb://order-service"
 
 # Point d'entrée

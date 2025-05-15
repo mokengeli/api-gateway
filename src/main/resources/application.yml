@@ -2,7 +2,7 @@ session:
   cache:
     ttl-seconds: 120
 authentication:
-  service-id: auth-service   # nom du micro-service dans Eureka
+  service-id: authentication-service   # nom du micro-service dans Eureka
 server:
   port: 8080  # Le port de la Gateway
 security:
@@ -33,8 +33,8 @@ spring:
           uri: lb://user-service  # Utilisation de Load Balancer avec Eureka
           predicates:
             - Path=/api/user/**
-        - id: auth-service
-          uri: lb://auth-service
+        - id: authentication-service
+          uri: lb://authentication-service
           predicates:
             - Path=/api/auth/**
         - id: order-service
