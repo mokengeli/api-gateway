@@ -26,8 +26,11 @@ jobs:
         run: |
           docker build \
             -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }} \
+            -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest \
             .
 
       - name: Push image
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+      
