@@ -40,6 +40,7 @@ ENV SERVER_PORT="" \
 
 # Variables d'environnement OPTIONNELLES
 ENV TIME_ZONE="GMT+01:00" \
+    SPRING_PROFILES_ACTIVE="dev" \
     SESSION_CACHE_TTL="120" \
     CLOUD_GATEWAY_LOG_LEVEL="INFO" \
     PUBLIC_PATHS="public/**, /api/auth/login" \
@@ -49,7 +50,8 @@ ENV TIME_ZONE="GMT+01:00" \
     ORDER_SERVICE_URL="lb://order-service"
 
 # Point d'entrée
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.location=file:./config/"]
+ENTRYPOINT ["java", "-jar", "app.jar","--spring.profiles.active=${SPRING_PROFILES_ACTIVE}",\
+            "--spring.config.location=file:./config/"]
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
