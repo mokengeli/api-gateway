@@ -26,7 +26,7 @@ public class CorsGlobalConfiguration {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
         // Autoriser les demandes en provenance de http://localhost:3000
-        corsConfig.setAllowedOrigins(Arrays.asList("*"));
+        corsConfig.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         // Autoriser toutes les méthodes (GET, POST, PUT, DELETE, OPTIONS, ...)
         corsConfig.addAllowedMethod("*");
         // Autoriser tous les headers ou bien ceux dont vous avez besoin
