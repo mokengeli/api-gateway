@@ -36,6 +36,7 @@ EXPOSE 8080
 ENV SERVER_PORT="" \
     JWT_SECRET="" \
     ALLOWED_ORIGINS="" \
+    MOBILE_PATTERNS="" \
     EUREKA_SERVER_URL=""
 
 # Variables d'environnement OPTIONNELLES
