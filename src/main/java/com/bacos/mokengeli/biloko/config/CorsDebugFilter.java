@@ -1,4 +1,4 @@
-package com.bacos.mokengeli.biloko.config;
+package com.bacos.mokengeli.biloko.filter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -24,33 +24,33 @@ public class CorsDebugFilter implements GlobalFilter, Ordered {
         HttpMethod method = exchange.getRequest().getMethod();
         String origin = headers.getFirst("Origin");
         String userAgent = headers.getFirst("User-Agent");
-        
+
         // Log des requêtes CORS et mobiles
         if (origin != null || HttpMethod.OPTIONS.equals(method)) {
-            log.info("CORS Request - Method: {}, Origin: {}, Path: {}, User-Agent: {}", 
-                method, origin, exchange.getRequest().getPath(), userAgent);
-            
+            log.info("CORS Request - Method: {}, Origin: {}, Path: {}, User-Agent: {}",
+                    method, origin, exchange.getRequest().getPath(), userAgent);
+
             // Log des headers de requête importants
             headers.forEach((key, values) -> {
-                if (key.toLowerCase().contains("access-control") || 
-                    key.toLowerCase().contains("origin") ||
-                    key.toLowerCase().contains("cors")) {
+                if (key.toLowerCase().contains("access-control") ||
+                        key.toLowerCase().contains("origin") ||
+                        key.toLowerCase().contains("cors")) {
                     log.debug("Request Header - {}: {}", key, values);
                 }
             });
         }
-        
+
         return chain.filter(exchange).then(Mono.fromRunnable(() -> {
             // Log des headers de réponse CORS
             if (origin != null || HttpMethod.OPTIONS.equals(method)) {
                 HttpHeaders responseHeaders = exchange.getResponse().getHeaders();
-                log.info("CORS Response - Status: {}, Headers: {}", 
-                    exchange.getResponse().getStatusCode(),
-                    responseHeaders.entrySet().stream()
-                        .filter(entry -> entry.getKey().toLowerCase().contains("access-control"))
-                        .collect(java.util.stream.Collectors.toMap(
-                            java.util.Map.Entry::getKey, 
-                            java.util.Map.Entry::getValue))
+                log.info("CORS Response - Status: {}, Headers: {}",
+                        exchange.getResponse().getStatusCode(),
+                        responseHeaders.entrySet().stream()
+                                .filter(entry -> entry.getKey().toLowerCase().contains("access-control"))
+                                .collect(java.util.stream.Collectors.toMap(
+                                        java.util.Map.Entry::getKey,
+                                        java.util.Map.Entry::getValue))
                 );
             }
         }));

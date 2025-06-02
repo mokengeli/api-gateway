@@ -59,8 +59,8 @@ management:
 logging:
   level:
     org.springframework.cloud.gateway: ${LOG_LEVEL:INFO}
-    org.springframework.web.cors: ${LOG_LEVEL:TRACE}
-    reactor.netty.http.server: ${LOG_LEVEL:INFO}
+    org.springframework.web.cors: ${LOG_LEVEL:INFO}
+
 
 gateway:
   public-paths: ${PUBLIC_PATHS:public/**,/api/auth/login}
