@@ -63,4 +63,4 @@ logging:
     #reactor.netty.http.server: DEBUG
 
 gateway:
-  public-paths: public/**,/api/auth/login
+  public-paths:  public/**, /api/auth/login, /api/order/ws/**

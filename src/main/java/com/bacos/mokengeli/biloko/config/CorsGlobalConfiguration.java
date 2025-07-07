@@ -58,22 +58,32 @@ public class CorsGlobalConfiguration {
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"
         ));
 
-        // Headers autorisés - liste complète
+        // Headers autorisés - liste complète incluant Authorization
         corsConfig.setAllowedHeaders(Arrays.asList(
-                "*"  // Simplifié - autorise tous les headers
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers",
+                "X-Requested-With",
+                "Cache-Control",
+                "Pragma",
+                "Expires"
         ));
 
-        // Headers exposés aux clients
+        // Headers exposés aux clients - IMPORTANT pour mobile
         corsConfig.setExposedHeaders(Arrays.asList(
                 "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Credentials",
                 "Set-Cookie",
-                "Authorization",
+                "Authorization",  // Important pour que le client mobile puisse lire ce header
                 "Content-Type",
                 "Content-Length"
         ));
 
-        // Autoriser les credentials (cookies, headers d'auth)
+        // Autoriser les credentials
+        // Note: avec credentials=true, on ne peut pas utiliser "*" pour les origines
         corsConfig.setAllowCredentials(true);
 
         // Cache preflight requests
