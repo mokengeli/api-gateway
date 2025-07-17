@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+
 /**
  * Filter de debug amélioré pour surveiller les requêtes CORS
  * À SUPPRIMER en production

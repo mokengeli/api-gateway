@@ -1,3 +1,8 @@
+
+// =============================================================================
+// 2. MISE À JOUR: CorsGlobalConfiguration.java
+// =============================================================================
+
 package com.bacos.mokengeli.biloko.config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -40,17 +45,22 @@ public class CorsGlobalConfiguration {
         corsConfig.setAllowedOrigins(webOrigins);
         log.info("CORS allowed origins: {}", webOrigins);
 
-        // Patterns pour applications mobiles
+        // Patterns pour applications mobiles EXPO
         List<String> mobilePatternsList = Arrays.asList(mobilePatterns.split(","));
         corsConfig.setAllowedOriginPatterns(mobilePatternsList);
         log.info("CORS mobile patterns: {}", mobilePatternsList);
 
-        // En développement, ajouter automatiquement localhost
+        // En développement, ajouter automatiquement localhost et patterns mobiles
         if (isDevelopmentMode()) {
             corsConfig.addAllowedOriginPattern("http://localhost:*");
             corsConfig.addAllowedOriginPattern("https://localhost:*");
             corsConfig.addAllowedOriginPattern("http://127.0.0.1:*");
-            log.info("Development mode: added localhost patterns");
+            // Patterns spécifiques pour Expo
+            corsConfig.addAllowedOriginPattern("exp://*");
+            corsConfig.addAllowedOriginPattern("exps://*");
+            corsConfig.addAllowedOriginPattern("https://*.expo.dev");
+            corsConfig.addAllowedOriginPattern("https://*.expo.io");
+            log.info("Development mode: added localhost and Expo patterns");
         }
 
         // Méthodes HTTP autorisées
@@ -58,7 +68,7 @@ public class CorsGlobalConfiguration {
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"
         ));
 
-        // Headers autorisés - liste complète incluant Authorization
+        // Headers autorisés - CRITIQUE pour mobile
         corsConfig.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
@@ -67,9 +77,12 @@ public class CorsGlobalConfiguration {
                 "Access-Control-Request-Method",
                 "Access-Control-Request-Headers",
                 "X-Requested-With",
+                "X-Client-Type",      // Nouveau header pour identifier le client
+                "X-Client-Platform",  // Nouveau header pour identifier la plateforme
                 "Cache-Control",
                 "Pragma",
-                "Expires"
+                "Expires",
+                "User-Agent"
         ));
 
         // Headers exposés aux clients - IMPORTANT pour mobile
@@ -77,29 +90,31 @@ public class CorsGlobalConfiguration {
                 "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Credentials",
                 "Set-Cookie",
-                "Authorization",  // Important pour que le client mobile puisse lire ce header
+                "Authorization",
                 "Content-Type",
-                "Content-Length"
+                "Content-Length",
+                "X-Total-Count"  // Utile pour la pagination
         ));
 
-        // Autoriser les credentials
-        // Note: avec credentials=true, on ne peut pas utiliser "*" pour les origines
+        // Gestion des credentials
+        // Pour mobile: false (Bearer token)
+        // Pour web: true (cookies)
         corsConfig.setAllowCredentials(true);
 
-        // Cache preflight requests
-        corsConfig.setMaxAge(isDevelopmentMode() ? 300L : 3600L); // 5min dev, 1h prod
+        // Cache preflight requests - Plus court pour mobile
+        corsConfig.setMaxAge(isDevelopmentMode() ? 300L : 1800L); // 5min dev, 30min prod
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfig);
 
-        log.info("CORS configuration initialized successfully");
+        log.info("CORS configuration initialized for mobile and web clients");
         return new CorsWebFilter(source);
     }
 
     private boolean isDevelopmentMode() {
         String[] activeProfiles = environment.getActiveProfiles();
         return Arrays.asList(activeProfiles).contains("dev") ||
-                activeProfiles.length == 0 || // Aucun profil = développement
+                activeProfiles.length == 0 ||
                 System.getProperty("spring.profiles.active", "").contains("dev");
     }
 }
