@@ -6,7 +6,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpCookie;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
@@ -15,17 +14,15 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * Filtre de traduction d'authentification pour Gateway
+ * Filtre de traduction d'authentification pour Gateway - VERSION CORRIGÉE
  *
- * RÔLE : Faire la traduction bidirectionnelle entre Bearer tokens (mobile) et Cookies (microservices)
+ * RÔLE : Faire la traduction unidirectionnelle Bearer tokens (mobile) → Cookies (microservices)
  *
- * FLUX ENTRANT (Mobile → Microservices) :
+ * FLUX ENTRANT UNIQUEMENT (Mobile → Microservices) :
  * 1. Mobile envoie Bearer token
  * 2. Gateway convertit en Cookie pour les microservices
  *
- * FLUX SORTANT (Microservices → Mobile) :
- * 1. Microservices répondent avec Set-Cookie
- * 2. Gateway convertit en Bearer token dans les headers de réponse pour mobile
+ * NOTE: La traduction retour (Set-Cookie → Bearer) est supprimée car elle causait des conflits
  */
 @Slf4j
 @Component
@@ -37,7 +34,6 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String CLIENT_TYPE_HEADER = "X-Client-Type";
-    private static final String SET_COOKIE_HEADER = "Set-Cookie";
     private static final String COOKIE_HEADER = "Cookie";
 
     @Override
@@ -46,7 +42,7 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
         String clientType = request.getHeaders().getFirst(CLIENT_TYPE_HEADER);
         boolean isMobileClient = "mobile".equals(clientType);
 
-        log.debug("Processing authentication translation - Mobile client: {}", isMobileClient);
+        log.debug("AuthenticationTranslatorFilter - Mobile client: {}", isMobileClient);
 
         if (isMobileClient) {
             return handleMobileToMicroserviceTranslation(exchange, chain);
@@ -56,7 +52,7 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * Gestion des requêtes mobiles : Bearer → Cookie (aller) et Set-Cookie → Bearer (retour)
+     * Gestion des requêtes mobiles : Bearer → Cookie (aller uniquement)
      */
     private Mono<Void> handleMobileToMicroserviceTranslation(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
@@ -64,14 +60,11 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
         // ÉTAPE 1 : Traduction Bearer Token → Cookie pour les microservices
         ServerHttpRequest modifiedRequest = translateBearerToCookie(request);
 
-        // ÉTAPE 2 : Continuer avec la requête modifiée et intercepter la réponse
+        // ÉTAPE 2 : Continuer avec la requête modifiée
         ServerWebExchange modifiedExchange = exchange.mutate().request(modifiedRequest).build();
 
-        return chain.filter(modifiedExchange)
-                .then(Mono.fromRunnable(() -> {
-                    // ÉTAPE 3 : Traduction Set-Cookie → Bearer Token pour la réponse mobile
-                    translateSetCookieToBearer(exchange.getResponse());
-                }));
+        // SUPPRESSION : Plus de modification des headers de réponse (causait l'erreur)
+        return chain.filter(modifiedExchange);
     }
 
     /**
@@ -90,8 +83,8 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
 
             return request.mutate()
                     .header(COOKIE_HEADER, cookieValue)
-                    // Optionnel : supprimer le header Authorization pour éviter la confusion
-                    .headers(headers -> headers.remove(AUTHORIZATION_HEADER))
+                    // GARDER le header Authorization pour compatibilité
+                    // .headers(headers -> headers.remove(AUTHORIZATION_HEADER))
                     .build();
         }
 
@@ -107,32 +100,6 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * Conversion Set-Cookie → Bearer Token pour les réponses mobiles
-     */
-    private void translateSetCookieToBearer(ServerHttpResponse response) {
-        // Récupérer les cookies de la réponse
-        String setCookieHeader = response.getHeaders().getFirst(SET_COOKIE_HEADER);
-
-        if (StringUtils.hasText(setCookieHeader)) {
-            // Extraire le token du Set-Cookie
-            String token = extractTokenFromSetCookie(setCookieHeader);
-
-            if (StringUtils.hasText(token)) {
-                log.debug("Microservice response: Converting Set-Cookie to Bearer token for mobile");
-
-                // Ajouter le Bearer token dans les headers de réponse
-                response.getHeaders().add(AUTHORIZATION_HEADER, BEARER_PREFIX + token);
-
-                // Optionnel : Supprimer le Set-Cookie pour mobile (éviter la confusion)
-                response.getHeaders().remove(SET_COOKIE_HEADER);
-
-                // Ajouter un header personnalisé pour debug
-                response.getHeaders().add("X-Auth-Source", "translated-from-cookie");
-            }
-        }
-    }
-
-    /**
      * Gestion des requêtes web : Passer tel quel (comportement actuel)
      */
     private Mono<Void> handleWebRequest(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -140,25 +107,8 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange);
     }
 
-    /**
-     * Extraire le token du header Set-Cookie
-     */
-    private String extractTokenFromSetCookie(String setCookieHeader) {
-        if (setCookieHeader.contains(accessTokenCookieName + "=")) {
-            // Format: accessToken=eyJhbGciOiJIUzI1NiJ9...; Path=/; HttpOnly
-            String[] parts = setCookieHeader.split(";");
-            for (String part : parts) {
-                part = part.trim();
-                if (part.startsWith(accessTokenCookieName + "=")) {
-                    return part.substring((accessTokenCookieName + "=").length());
-                }
-            }
-        }
-        return null;
-    }
-
     @Override
     public int getOrder() {
-        return -1; // Après HybridAuthenticationFilter (-2) mais avant les autres filtres
+        return -1; // Après UnifiedAuthenticationFilter (-2)
     }
 }
