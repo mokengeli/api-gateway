@@ -93,6 +93,7 @@ public class CorsGlobalConfiguration {
                 "Authorization",
                 "Content-Type",
                 "Content-Length",
+                "Content-Disposition",
                 "X-Total-Count"  // Utile pour la pagination
         ));
 

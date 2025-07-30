@@ -6,7 +6,6 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -16,7 +15,7 @@ import reactor.core.publisher.Mono;
  * À SUPPRIMER en production
  */
 @Slf4j
-@Component
+//@Component
 public class CorsDebugFilter implements GlobalFilter, Ordered {
 
     @Override
