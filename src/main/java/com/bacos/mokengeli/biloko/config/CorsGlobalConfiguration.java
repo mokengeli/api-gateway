@@ -18,6 +18,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Configuration
@@ -41,27 +42,19 @@ public class CorsGlobalConfiguration {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
         // Origines web classiques
-        List<String> webOrigins = Arrays.asList(allowedOrigins.split(","));
+        List<String> webOrigins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
         corsConfig.setAllowedOrigins(webOrigins);
         log.info("CORS allowed origins: {}", webOrigins);
 
         // Patterns pour applications mobiles EXPO
-        List<String> mobilePatternsList = Arrays.asList(mobilePatterns.split(","));
+        List<String> mobilePatternsList = Arrays.stream(mobilePatterns.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
         corsConfig.setAllowedOriginPatterns(mobilePatternsList);
         log.info("CORS mobile patterns: {}", mobilePatternsList);
 
-        // En développement, ajouter automatiquement localhost et patterns mobiles
-        if (isDevelopmentMode()) {
-            corsConfig.addAllowedOriginPattern("http://localhost:*");
-            corsConfig.addAllowedOriginPattern("https://localhost:*");
-            corsConfig.addAllowedOriginPattern("http://127.0.0.1:*");
-            // Patterns spécifiques pour Expo
-            corsConfig.addAllowedOriginPattern("exp://*");
-            corsConfig.addAllowedOriginPattern("exps://*");
-            corsConfig.addAllowedOriginPattern("https://*.expo.dev");
-            corsConfig.addAllowedOriginPattern("https://*.expo.io");
-            log.info("Development mode: added localhost and Expo patterns");
-        }
 
         // Méthodes HTTP autorisées
         corsConfig.setAllowedMethods(Arrays.asList(
