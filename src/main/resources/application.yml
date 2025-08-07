@@ -4,7 +4,7 @@ session:
 authentication:
   service-id: authentication-service
 server:
-  port: 8080
+  port: 8081
 security:
   cors:
     allowed-origins: http://localhost:3000,http://localhost:3001,https://hideously-smart-llama.ngrok-free.app
@@ -63,4 +63,4 @@ logging:
     #reactor.netty.http.server: DEBUG
 
 gateway:
-  public-paths:  public/**, /api/auth/login, /api/order/ws/**
+  public-paths:  public/**, /api/auth/login
