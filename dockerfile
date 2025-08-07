@@ -30,7 +30,7 @@ COPY --from=build /app/target/app.jar ./app.jar
 COPY src/main/resources/application*.yml ./config/
 
 # Exposer le port
-EXPOSE 8080
+EXPOSE 8081
 
 # Variables d'environnement REQUISES
 ENV SERVER_PORT="" \
