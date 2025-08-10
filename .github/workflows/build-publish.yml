@@ -2,35 +2,151 @@ name: Build & Publish Docker Image
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, develop ]
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build-and-push:
+  # Job pour déterminer l'environnement et les paramètres
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      tag-prefix: ${{ steps.env.outputs.tag-prefix }}
+      should-deploy: ${{ steps.env.outputs.should-deploy }}
+      image-name: ${{ steps.env.outputs.image-name }}
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          # Déterminer l'environnement selon la branche/tag
+          if [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "tag-prefix=prod" >> $GITHUB_OUTPUT
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=preprod" >> $GITHUB_OUTPUT
+            echo "tag-prefix=preprod" >> $GITHUB_OUTPUT
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+            echo "tag-prefix=dev" >> $GITHUB_OUTPUT
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Nom de l'image (utilise le nom du repo)
+          echo "image-name=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+          
+          # Afficher les informations
+          echo "🎯 Environment: $(grep environment $GITHUB_OUTPUT | cut -d'=' -f2)"
+          echo "🏷️ Tag Prefix: $(grep tag-prefix $GITHUB_OUTPUT | cut -d'=' -f2)"
+          echo "📦 Image: $(grep image-name $GITHUB_OUTPUT | cut -d'=' -f2)"
+
+  # Job principal de build et push
+  build-and-push:
+    needs: setup
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.setup.outputs.environment }}
+    env:
+      REGISTRY: ghcr.io
+      TAG_PREFIX: ${{ needs.setup.outputs.tag-prefix }}
+      IMAGE_NAME: ${{ needs.setup.outputs.image-name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Generate version info
+        id: version
+        run: |
+          # SHA court
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short-sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          
+          # Version (tag ou SHA)
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is-release=true" >> $GITHUB_OUTPUT
+          else
+            echo "version=$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "is-release=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Log in to GHCR
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image
-        run: |
-          docker build \
-            -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }} \
-            -t ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest \
-            .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: Push image
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ env.TAG_PREFIX }}-latest
+            type=raw,value=${{ env.TAG_PREFIX }}-${{ steps.version.outputs.short-sha }}
+            type=raw,value=${{ env.TAG_PREFIX }}-${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.is-release }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=Mokengeli Biloko - ${{ env.IMAGE_NAME }}
+            org.opencontainers.image.vendor=Mokengeli
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            environment=${{ needs.setup.outputs.environment }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_ENV=${{ needs.setup.outputs.environment }}
+            VERSION=${{ steps.version.outputs.version }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Create deployment summary
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
-      
+          ENV_NAME="${{ needs.setup.outputs.environment }}"
+          ENV_EMOJI="🧪"
+          if [[ "$ENV_NAME" == "production" ]]; then
+            ENV_EMOJI="🚀"
+          fi
+          
+          echo "## $ENV_EMOJI ${ENV_NAME^} Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Service** | \`${{ env.IMAGE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENV_NAME\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch/Tag** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`${{ steps.version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ steps.version.outputs.short-sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Docker Images" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" | sed 's/,/\n/g' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deployment Command" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Sur le serveur de $ENV_NAME:" >> $GITHUB_STEP_SUMMARY
+          echo "cd ~/projects/mokengeli-biloko-infra" >> $GITHUB_STEP_SUMMARY
+          echo "./deploy.sh $ENV_NAME update" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
