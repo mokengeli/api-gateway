@@ -7,6 +7,7 @@ authentication:
 
 server:
   port: ${SERVER_PORT}
+  forward-headers-strategy: framework
   netty:
     # Timeout plus long pour WebSocket
     idle-timeout: PT60S
@@ -36,7 +37,8 @@ spring:
       globalcors:
         # Désactivé car géré par CorsGlobalConfiguration
         enabled: false
-
+      forwarded:
+        enabled: true
       # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
       routes:
         # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
