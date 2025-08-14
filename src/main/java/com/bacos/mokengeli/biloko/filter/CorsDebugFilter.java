@@ -60,10 +60,10 @@ public class CorsDebugFilter implements GlobalFilter, Ordered {
         }
 
         if (path.contains("/ws")) {
-            log.warn("WebSocket request detected:");
-            log.warn("- Upgrade header: {}", headers.getFirst("Upgrade"));
-            log.warn("- Connection header: {}", headers.getFirst("Connection"));
-            log.warn("- X-Forwarded-Proto: {}", headers.getFirst("X-Forwarded-Proto"));
+            log.info("WebSocket request detected:");
+            log.info("- Upgrade header: {}", headers.getFirst("Upgrade"));
+            log.info("- Connection header: {}", headers.getFirst("Connection"));
+            log.info("- X-Forwarded-Proto: {}", headers.getFirst("X-Forwarded-Proto"));
         }
 
         return chain.filter(exchange).then(Mono.fromRunnable(() -> {
@@ -81,7 +81,7 @@ public class CorsDebugFilter implements GlobalFilter, Ordered {
 
                 // Vérification des headers CORS critiques
                 if (!responseHeaders.containsKey("Access-Control-Allow-Origin")) {
-                    log.error("MISSING Access-Control-Allow-Origin header!");
+                    log.error("MISSING Access-Control-Allow-Origin header! path = {}", path);
                 }
                 if (origin != null && !responseHeaders.getAccessControlAllowOrigin().equals(origin) &&
                         !responseHeaders.getAccessControlAllowOrigin().equals("*")) {

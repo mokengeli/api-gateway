@@ -49,8 +49,8 @@ spring:
           filters:
             # Préserver le path et les headers pour WebSocket
             - PreserveHostHeader
-            - AddRequestHeader=X-Forwarded-Proto, https
-            - AddRequestHeader=X-Forwarded-Port, 443
+            #- AddRequestHeader=X-Forwarded-Proto, https
+            #- AddRequestHeader=X-Forwarded-Port, 443
 
         # Route standard pour Order Service
         - id: order-service
