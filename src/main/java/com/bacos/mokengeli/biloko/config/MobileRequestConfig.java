@@ -31,7 +31,9 @@ public class MobileRequestConfig {
                         .validateHeaders(false)
                 )
                 // Configuration TCP (keep-alive, no delay, timeout)
-                .tcpConfiguration(this::customizeTcpServer);
+                .option(ChannelOption.SO_KEEPALIVE, true)
+                .option(ChannelOption.TCP_NODELAY, true)
+                .childOption(ChannelOption.SO_KEEPALIVE, true);
     }
 
     private TcpServer customizeTcpServer(TcpServer tcp) {

@@ -59,6 +59,13 @@ public class CorsDebugFilter implements GlobalFilter, Ordered {
             log.info("Preflight details - Method: {}, Headers: {}", requestMethod, requestHeaders);
         }
 
+        if (path.contains("/ws")) {
+            log.warn("WebSocket request detected:");
+            log.warn("- Upgrade header: {}", headers.getFirst("Upgrade"));
+            log.warn("- Connection header: {}", headers.getFirst("Connection"));
+            log.warn("- X-Forwarded-Proto: {}", headers.getFirst("X-Forwarded-Proto"));
+        }
+
         return chain.filter(exchange).then(Mono.fromRunnable(() -> {
             // Log des headers de réponse
             if (origin != null || HttpMethod.OPTIONS.equals(method) || isMobileRequest) {
