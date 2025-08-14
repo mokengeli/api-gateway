@@ -14,7 +14,7 @@ server:
 
 security:
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:8080,https://hideously-smart-llama.ngrok-free.app
+    allowed-origins: http://localhost:3000,http://localhost:8080,https://hideously-smart-llama.ngrok-free.app,http://localhost:8081,http://localhost:8082
     mobile-patterns: exp://*,exps://*,capacitor://localhost,ionic://localhost,http://127.0.0.1:*,http://10.0.2.2:*,http://192.168.*:*
   jwt:
     secret: 9a4f2c_8d3b7a1e6f#45c8a0b3f268b1d4e6-f3c8a9d2b5f8e3a9c8-b5f6v8a3d9A@
@@ -42,16 +42,23 @@ spring:
 
       # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
       routes:
-        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
+        # Route SockJS Info (très spécifique)
+        - id: order-service-sockjs-info
+          uri: lb://order-service
+          predicates:
+            - Path=/api/order/ws/info/**
+          filters:
+            - PreserveHostHeader
+
+        # Route WebSocket (spécifique)
         - id: order-service-websocket
           uri: lb:ws://order-service
           predicates:
             - Path=/api/order/ws/**
           filters:
-            # Préserver le path complet pour WebSocket
             - PreserveHostHeader
 
-        # Route standard pour Order Service
+        # Route HTTP (générale - sera matchée en dernier)
         - id: order-service
           uri: lb://order-service
           predicates:

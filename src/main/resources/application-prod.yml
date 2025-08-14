@@ -41,18 +41,23 @@ spring:
         enabled: true
       # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
       routes:
-        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
+        # Route SockJS Info (très spécifique)
+        - id: order-service-sockjs-info
+          uri: ${ORDER_SERVICE_URL:lb://order-service}
+          predicates:
+            - Path=/api/order/ws/info/**
+          filters:
+            - PreserveHostHeader
+
+        # Route WebSocket (spécifique)
         - id: order-service-websocket
           uri: ${ORDER_SERVICE_WS_URL:lb:ws://order-service}
           predicates:
             - Path=/api/order/ws/**
           filters:
-            # Préserver le path et les headers pour WebSocket
             - PreserveHostHeader
-            #- AddRequestHeader=X-Forwarded-Proto, https
-            #- AddRequestHeader=X-Forwarded-Port, 443
 
-        # Route standard pour Order Service
+        # Route HTTP (générale - sera matchée en dernier)
         - id: order-service
           uri: ${ORDER_SERVICE_URL:lb://order-service}
           predicates:
