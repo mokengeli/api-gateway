@@ -1,10 +1,17 @@
 session:
   cache:
     ttl-seconds: 120
+
 authentication:
   service-id: authentication-service
+
 server:
   port: 8081
+  forward-headers-strategy: framework
+  netty:
+    # Timeout plus long pour WebSocket
+    idle-timeout: PT60S
+
 security:
   cors:
     allowed-origins: http://localhost:3000,http://localhost:3001,https://hideously-smart-llama.ngrok-free.app
@@ -13,6 +20,7 @@ security:
     secret: 9a4f2c_8d3b7a1e6f#45c8a0b3f268b1d4e6-f3c8a9d2b5f8e3a9c8-b5f6v8a3d9A@
     cookie:
       access-token: "accessToken"
+
 spring:
   application:
     name: api-gateway
@@ -25,23 +33,71 @@ spring:
     time-zone: GMT+01:00
   cloud:
     gateway:
+      # Configuration globale
+      globalcors:
+        # Désactivé car géré par CorsGlobalConfiguration
+        enabled: false
+      forwarded:
+        enabled: true
+
+      # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
       routes:
-        - id: inventory-service
-          uri: lb://inventory-service
+        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
+        - id: order-service-websocket
+          uri: lb:ws://order-service
           predicates:
-            - Path=/api/inventory/**
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/user/**
-        - id: authentication-service
-          uri: lb://authentication-service
-          predicates:
-            - Path=/api/auth/**
+            - Path=/api/order/ws/**
+          filters:
+            # Préserver le path complet pour WebSocket
+            - PreserveHostHeader
+
+        # Route standard pour Order Service
         - id: order-service
           uri: lb://order-service
           predicates:
             - Path=/api/order/**
+
+        # Route pour Inventory Service
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/inventory/**
+
+        # Route pour User Service
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+
+        # Route pour Authentication Service
+        - id: authentication-service
+          uri: lb://authentication-service
+          predicates:
+            - Path=/api/auth/**
+
+      # Configuration HTTP Client pour WebSocket
+      httpclient:
+        # Configuration WebSocket
+        websocket:
+          # Taille max des frames WebSocket (640KB)
+          max-frame-payload-length: 655360
+          # Proxy automatique des sous-protocoles
+          proxy-ping: true
+        # Pool de connexions
+        pool:
+          type: elastic
+          max-idle-time: 30s
+          max-connections: 500
+          #acquire-timeout: 45s
+        # Timeouts
+        connect-timeout: 10000
+        response-timeout: 60s
+        # Compression
+        compression: true
+
+      # Configuration des métriques
+      metrics:
+        enabled: true
 
 eureka:
   client:
@@ -49,18 +105,43 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
     fetch-registry: true
     register-with-eureka: true
+    # Rafraîchissement plus fréquent pour WebSocket
+    registry-fetch-interval-seconds: 5
+  instance:
+    # Heartbeat plus fréquent
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    prefer-ip-address: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,gateway
+  endpoint:
+    gateway:
+      access: read_only
 
 logging:
   level:
+    # Debug pour WebSocket et Gateway
     org.springframework.cloud.gateway: DEBUG
-    #org.springframework.web.cors: DEBUG
-    #reactor.netty.http.server: DEBUG
+    org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: DEBUG
+    org.springframework.cloud.gateway.filter.factory: DEBUG
+    org.springframework.web.reactive.socket: DEBUG
+    reactor.netty.http.server: DEBUG
+    com.bacos.mokengeli.biloko.filter: DEBUG
+
+# Timeouts Reactor Netty pour WebSocket
+reactor:
+  netty:
+    pool:
+      max-idle-time: 60000
+      max-life-time: 300000
+    http:
+      server:
+        # Désactiver la compression pour WebSocket
+        compression: false
 
 gateway:
-  public-paths:  public/**, /api/auth/login
+  public-paths: public/**, /api/auth/login
