@@ -41,7 +41,18 @@ spring:
         enabled: true
       # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
       routes:
-        # Route SockJS Info (très spécifique)
+        # AJOUT : Route WebSocket native pour mobile (sans SockJS)
+        - id: order-service-websocket-native
+          uri: ${ORDER_SERVICE_WS_URL:lb:ws://order-service}
+          predicates:
+            - Path=/api/order/ws-native
+          filters:
+            - PreserveHostHeader
+            # Retirer les headers qui peuvent poser problème
+            - RemoveRequestHeader=Origin
+            - RemoveRequestHeader=Sec-WebSocket-Extensions
+
+        # Route SockJS Info (très spécifique) - EXISTANT
         - id: order-service-sockjs-info
           uri: ${ORDER_SERVICE_URL:lb://order-service}
           predicates:
@@ -49,7 +60,7 @@ spring:
           filters:
             - PreserveHostHeader
 
-        # Route WebSocket (spécifique)
+        # Route WebSocket (spécifique) - EXISTANT
         - id: order-service-websocket
           uri: ${ORDER_SERVICE_WS_URL:lb:ws://order-service}
           predicates:
@@ -57,7 +68,7 @@ spring:
           filters:
             - PreserveHostHeader
 
-        # Route HTTP (générale - sera matchée en dernier)
+        # Route HTTP (générale - sera matchée en dernier) - EXISTANT
         - id: order-service
           uri: ${ORDER_SERVICE_URL:lb://order-service}
           predicates:
