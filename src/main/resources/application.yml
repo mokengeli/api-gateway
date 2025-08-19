@@ -10,7 +10,7 @@ server:
   forward-headers-strategy: framework
   netty:
     # Timeout plus long pour WebSocket
-    idle-timeout: PT60S
+    idle-timeout: PT120S  # Augmenté pour WebSocket
 
 security:
   cors:
@@ -40,64 +40,90 @@ spring:
       forwarded:
         enabled: true
 
-      # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
+      # Routes - ORDRE CRITIQUE: WebSocket AVANT les routes standard
       routes:
-        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
-        - id: order-service-websocket
+        # =============================================================================
+        # ROUTE 1: WebSocket NATIF pour Order Service (NOUVEAU)
+        # =============================================================================
+        - id: order-service-websocket-native
+          uri: lb:ws://order-service  # lb:ws:// pour load balancing WebSocket
+          predicates:
+            - Path=/api/order/ws/websocket
+          filters:
+            # Préserver tous les headers pour WebSocket
+            - PreserveHostHeader
+
+        # =============================================================================
+        # ROUTE 2: SockJS Legacy pour Order Service (TEMPORAIRE)
+        # =============================================================================
+        - id: order-service-sockjs
           uri: lb:ws://order-service
           predicates:
             - Path=/api/order/ws/**
+            # Exclure le path natif
+            - name: Query
+              args:
+                param: sockjs
           filters:
-            # Préserver le path complet pour WebSocket
             - PreserveHostHeader
 
-        # Route standard pour Order Service
-        - id: order-service
+        # =============================================================================
+        # ROUTE 3: HTTP Standard pour Order Service
+        # =============================================================================
+        - id: order-service-http
           uri: lb://order-service
           predicates:
             - Path=/api/order/**
 
-        # Route pour Inventory Service
+
+        # =============================================================================
+        # AUTRES SERVICES (HTTP uniquement)
+        # =============================================================================
         - id: inventory-service
           uri: lb://inventory-service
           predicates:
             - Path=/api/inventory/**
 
-        # Route pour User Service
         - id: user-service
           uri: lb://user-service
           predicates:
             - Path=/api/user/**
 
-        # Route pour Authentication Service
         - id: authentication-service
           uri: lb://authentication-service
           predicates:
             - Path=/api/auth/**
 
-      # Configuration HTTP Client pour WebSocket
+      # Configuration HTTP Client pour WebSocket - CRITIQUE
       httpclient:
         # Configuration WebSocket
         websocket:
-          # Taille max des frames WebSocket (640KB)
-          max-frame-payload-length: 655360
-          # Proxy automatique des sous-protocoles
-          proxy-ping: true
+          # Taille max des frames WebSocket (1MB)
+          max-frame-payload-length: 1048576
+          # Proxy des pings WebSocket
+          proxy-ping: false  # CHANGÉ: Laisser STOMP gérer les heartbeats
+          # Sous-protocoles STOMP
+          proxyWebsocketSubProtocols: true  # AJOUTÉ: Proxy les sous-protocoles
         # Pool de connexions
         pool:
           type: elastic
-          max-idle-time: 30s
-          max-connections: 500
-          #acquire-timeout: 45s
+          max-idle-time: 60s
+          max-connections: 1000
+          acquire-timeout: 45000  # 45 secondes en millisecondes
         # Timeouts
-        connect-timeout: 10000
-        response-timeout: 60s
-        # Compression
-        compression: true
+        connect-timeout: 10000   # 10 secondes en millisecondes
+        response-timeout: 120s   # 120 secondes
+        # Wiretap pour debug (désactiver en prod)
+        wiretap: false  # CHANGÉ: Désactivé pour éviter les interférences
+        # Compression désactivée pour WebSocket
+        compression: false
 
       # Configuration des métriques
       metrics:
         enabled: true
+        tags:
+          path:
+            enabled: true
 
 eureka:
   client:
@@ -112,36 +138,48 @@ eureka:
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
     prefer-ip-address: true
+    # Métadonnées pour WebSocket
+    metadata-map:
+      websocket-enabled: true
+      websocket-path: /api/order/ws/websocket
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,gateway
+        include: health,info,metrics,gateway,routes
   endpoint:
     gateway:
-      access: read_only
+      access: unrestricted
+    routes:
+      enabled: true
 
 logging:
   level:
-    # Debug pour WebSocket et Gateway
-    org.springframework.cloud.gateway: DEBUG
-    org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: DEBUG
-    org.springframework.cloud.gateway.filter.factory: DEBUG
-    org.springframework.web.reactive.socket: DEBUG
-    reactor.netty.http.server: DEBUG
-    com.bacos.mokengeli.biloko.filter: DEBUG
+    # Réduire les logs pour éviter les interférences
+    org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: INFO
+    org.springframework.cloud.gateway.filter.factory: INFO
+    org.springframework.cloud.gateway.route.RouteDefinitionRouteLocator: INFO
+    org.springframework.web.reactive.socket: INFO
+    reactor.netty: INFO
+    reactor.netty.http.client: INFO
+    reactor.netty.http.server: INFO
+    reactor.netty.channel: INFO
+    io.netty.handler.codec.http.websocketx: INFO
+    com.bacos.mokengeli.biloko: DEBUG
 
 # Timeouts Reactor Netty pour WebSocket
 reactor:
   netty:
     pool:
-      max-idle-time: 60000
-      max-life-time: 300000
+      max-idle-time: 120000  # 2 minutes
+      max-life-time: 600000  # 10 minutes
     http:
       server:
         # Désactiver la compression pour WebSocket
         compression: false
 
+# Paths publics
 gateway:
-  public-paths: public/**, /api/auth/login
+  public-paths: /public/**, /api/auth/login, /api/order/ws/test, /api/order/ws/status

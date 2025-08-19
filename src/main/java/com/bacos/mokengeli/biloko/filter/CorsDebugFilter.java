@@ -76,7 +76,7 @@ public class CorsDebugFilter implements GlobalFilter, Ordered {
                 if (!responseHeaders.containsKey("Access-Control-Allow-Origin")) {
                     log.error("MISSING Access-Control-Allow-Origin header!");
                 }
-                if (origin != null && !responseHeaders.getAccessControlAllowOrigin().equals(origin) &&
+                if (origin != null && responseHeaders.getAccessControlAllowOrigin() != null && !responseHeaders.getAccessControlAllowOrigin().equals(origin) &&
                         !responseHeaders.getAccessControlAllowOrigin().equals("*")) {
                     log.error("Origin mismatch! Request: {}, Response: {}",
                             origin, responseHeaders.getAccessControlAllowOrigin());
