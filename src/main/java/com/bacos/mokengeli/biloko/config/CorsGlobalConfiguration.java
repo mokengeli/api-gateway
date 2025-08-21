@@ -67,6 +67,7 @@ public class CorsGlobalConfiguration {
                 "Content-Type",
                 "Accept",
                 "Origin",
+                "Cookie",
                 "Access-Control-Request-Method",
                 "Access-Control-Request-Headers",
                 "X-Requested-With",
@@ -101,7 +102,17 @@ public class CorsGlobalConfiguration {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfig);
 
-        log.info("CORS configuration initialized for mobile and web clients");
+        // Configuration spécifique pour Socket.io
+        CorsConfiguration socketIoConfig = new CorsConfiguration();
+        socketIoConfig.setAllowedOrigins(webOrigins);
+        socketIoConfig.setAllowedOriginPatterns(mobilePatternsList);
+        socketIoConfig.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
+        socketIoConfig.setAllowedHeaders(Arrays.asList("Origin", "Cookie", "Content-Type", "Authorization"));
+        socketIoConfig.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
+        socketIoConfig.setAllowCredentials(true);
+        source.registerCorsConfiguration("/socket.io/**", socketIoConfig);
+
+        log.info("CORS configuration initialized for mobile, web and Socket.io clients");
         return new CorsWebFilter(source);
     }
 

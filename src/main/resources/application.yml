@@ -9,8 +9,8 @@ server:
   port: 8081
   forward-headers-strategy: framework
   netty:
-    # Timeout plus long pour WebSocket
-    idle-timeout: PT60S
+    # Timeout plus long pour WebSocket et Socket.io
+    idle-timeout: PT120S
 
 security:
   cors:
@@ -42,7 +42,26 @@ spring:
 
       # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
       routes:
-        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
+        # Socket.io WebSocket
+        - id: order-service-socketio-ws
+          uri: lb:ws://order-service
+          predicates:
+            - Path=/socket.io/**
+            - Query=transport, websocket
+          filters:
+            - PreserveHostHeader
+
+        # Socket.io long polling (GET/POST)
+        - id: order-service-socketio-polling
+          uri: lb://order-service
+          predicates:
+            - Path=/socket.io/**
+            - Query=transport, polling
+            - Method=GET,POST
+          filters:
+            - PreserveHostHeader
+
+        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER après Socket.io
         - id: order-service-websocket
           uri: lb:ws://order-service
           predicates:
@@ -79,8 +98,8 @@ spring:
       httpclient:
         # Configuration WebSocket
         websocket:
-          # Taille max des frames WebSocket (640KB)
-          max-frame-payload-length: 655360
+          # Taille max des frames WebSocket (1MB)
+          max-frame-payload-length: 1048576
           # Proxy automatique des sous-protocoles
           proxy-ping: true
         # Pool de connexions
@@ -88,16 +107,23 @@ spring:
           type: elastic
           max-idle-time: 30s
           max-connections: 500
-          #acquire-timeout: 45s
-        # Timeouts
+        # Timeouts adaptés pour long-polling Socket.io
         connect-timeout: 10000
-        response-timeout: 60s
-        # Compression
-        compression: true
+        response-timeout: 120s
+        # Désactivation de la compression pour Socket.io
+        compression: false
+        tcp:
+          # Maintien des connexions persistantes
+          keep-alive: true
 
       # Configuration des métriques
       metrics:
         enabled: true
+
+    loadbalancer:
+      sticky-session:
+        enabled: true
+        cookie-name: SOCKET_IO_SESSION
 
 eureka:
   client:
@@ -143,5 +169,8 @@ reactor:
         # Désactiver la compression pour WebSocket
         compression: false
 
+
 gateway:
   public-paths: public/**, /api/auth/login
+
+
