@@ -11,6 +11,7 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 /**
@@ -79,10 +80,17 @@ public class AuthenticationTranslatorFilter implements GlobalFilter, Ordered {
             // Créer le cookie pour les microservices
             String cookieValue = accessTokenCookieName + "=" + token;
 
-            log.debug("Mobile request: Converting Bearer token to Cookie for microservices");
+            // Ajouter le token comme query param pour Socket.io
+            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUri(request.getURI());
+            if (!request.getQueryParams().containsKey("token")) {
+                uriBuilder.queryParam("token", token);
+            }
+
+            log.debug("Mobile request: Converting Bearer token to Cookie and query param for microservices");
 
             return request.mutate()
                     .header(COOKIE_HEADER, cookieValue)
+                    .uri(uriBuilder.build(true).toUri())
                     // GARDER le header Authorization pour compatibilité
                     // .headers(headers -> headers.remove(AUTHORIZATION_HEADER))
                     .build();
