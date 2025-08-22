@@ -199,7 +199,7 @@ management:
         include: health,info,metrics,gateway,routes
   endpoint:
     gateway:
-      enabled: true
+      access: unrestricted
     routes:
       enabled: true
 
