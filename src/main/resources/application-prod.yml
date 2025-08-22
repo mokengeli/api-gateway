@@ -204,7 +204,6 @@ management:
   endpoint:
     gateway:
       access: unrestricted
-      enabled: true
     routes:
       enabled: true
 
