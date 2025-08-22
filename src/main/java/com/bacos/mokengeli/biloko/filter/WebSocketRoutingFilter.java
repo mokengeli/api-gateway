@@ -20,7 +20,7 @@ import java.util.List;
  * Ce filtre s'assure que les connexions WebSocket passent correctement
  */
 @Slf4j
-@Component
+//@Component
 public class WebSocketRoutingFilter implements GlobalFilter, Ordered {
 
     @Value("${security.jwt.cookie.access-token:accessToken}")
