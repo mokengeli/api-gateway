@@ -208,10 +208,10 @@ logging:
     org.springframework.cloud.gateway: INFO
     org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: DEBUG
     org.springframework.cloud.gateway.filter.factory: INFO
-    org.springframework.web.reactive.socket: DEBUG
+    org.springframework.web.reactive.socket: INFO
     reactor.netty: INFO
-    reactor.netty.http.client: DEBUG
-    io.netty.handler.codec.http.websocketx: DEBUG
+    reactor.netty.http.client: INFO
+    io.netty.handler.codec.http.websocketx: INFO
     com.bacos.mokengeli.biloko: DEBUG
 
 # Timeouts Reactor Netty pour Socket.io
