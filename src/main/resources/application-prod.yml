@@ -9,8 +9,7 @@ server:
   port: ${SERVER_PORT}
   forward-headers-strategy: framework
   netty:
-    # Timeout plus long pour WebSocket et Socket.io
-    idle-timeout: ${WEBSOCKET_IDLE_TIMEOUT:PT120S}
+    idle-timeout: ${GATEWAY_IDLE_TIMEOUT:PT30S}
 
 security:
   cors:
@@ -45,81 +44,10 @@ spring:
         locator:
           enabled: false
 
-      # Routes - ORDRE CRITIQUE: Socket.io AVANT WebSocket AVANT HTTP
+      # Routes
       routes:
         # =============================================================================
-        # ROUTE 1: Socket.io Transport direct (WebSocket + Polling)
-        # Path direct /socket.io/**
-        # =============================================================================
-        - id: order-service-socketio-direct
-          uri: ${SOCKETIO_DIRECT_URL:http://order-service:9092}
-          predicates:
-            - Path=/socket.io/**
-          filters:
-            - PreserveHostHeader
-
-        # =============================================================================
-        # ROUTE 2: Socket.io avec préfixe API (WebSocket)
-        # Path /api/order/socket.io/** pour WebSocket
-        # =============================================================================
-        - id: order-service-socketio-api-ws
-          uri: ${SOCKETIO_DIRECT_URL:http://order-service:9092}
-          predicates:
-            - Path=/api/order/socket.io/**
-            - Header=Upgrade, websocket
-          filters:
-            - PreserveHostHeader
-            - RewritePath=/api/order/socket.io/(?<segment>.*), /socket.io/${segment}
-
-        # =============================================================================
-        # ROUTE 3: Socket.io avec préfixe API (Polling)
-        # Path /api/order/socket.io/** pour HTTP polling
-        # =============================================================================
-        - id: order-service-socketio-api-polling
-          uri: ${SOCKETIO_DIRECT_URL:http://order-service:9092}
-          predicates:
-            - Path=/api/order/socket.io/**
-          filters:
-            - PreserveHostHeader
-            - RewritePath=/api/order/socket.io/(?<segment>.*), /socket.io/${segment}
-
-        # =============================================================================
-        # ROUTE 4: Endpoints de test Socket.io
-        # =============================================================================
-        - id: order-service-socketio-test
-          uri: lb://order-service
-          predicates:
-            - Path=/api/order/socketio/**
-          filters:
-            - PreserveHostHeader
-
-        # =============================================================================
-        # ROUTE 5: WebSocket NATIF pour Order Service (STOMP legacy)
-        # =============================================================================
-        - id: order-service-websocket-native
-          uri: lb:ws://order-service  # lb:ws:// pour load balancing WebSocket
-          predicates:
-            - Path=/api/order/ws/websocket
-          filters:
-            # Préserver tous les headers pour WebSocket
-            - PreserveHostHeader
-
-        # =============================================================================
-        # ROUTE 6: SockJS Legacy pour Order Service
-        # =============================================================================
-        - id: order-service-sockjs
-          uri: lb:ws://order-service
-          predicates:
-            - Path=/api/order/ws/**
-            # Exclure le path natif
-            - name: Query
-              args:
-                param: sockjs
-          filters:
-            - PreserveHostHeader
-
-        # =============================================================================
-        # ROUTE 7: HTTP Standard pour Order Service
+        # Order Service
         # =============================================================================
         - id: order-service-http
           uri: lb://order-service
@@ -127,7 +55,7 @@ spring:
             - Path=/api/order/**
 
         # =============================================================================
-        # AUTRES SERVICES (HTTP uniquement)
+        # Other Services
         # =============================================================================
         - id: inventory-service
           uri: lb://inventory-service
@@ -144,33 +72,19 @@ spring:
           predicates:
             - Path=/api/auth/**
 
-      # Configuration HTTP Client pour WebSocket et Socket.io - CRITIQUE
+      # Configuration HTTP Client
       httpclient:
-        # Configuration WebSocket
-        websocket:
-          # Taille max des frames (Socket.io utilise des frames plus petites)
-          max-frame-payload-length: ${SOCKETIO_MAX_FRAME_PAYLOAD_LENGTH:65536}  # 64KB
-          # Proxy des pings WebSocket
-          proxy-ping: false  # Laisser STOMP/Socket.io gérer les heartbeats
-          # Sous-protocoles STOMP
-          proxyWebsocketSubProtocols: true  # Proxy les sous-protocoles
-        # Pool de connexions
         pool:
           type: elastic
-          max-idle-time: ${SOCKETIO_MAX_IDLE_TIME:120s}
-          max-connections: ${SOCKETIO_MAX_CONNECTIONS:1000}
-          acquire-timeout: ${SOCKETIO_ACQUIRE_TIMEOUT:45000}  # 45 secondes en millisecondes
-        # Timeouts
-        connect-timeout: ${SOCKETIO_CONNECT_TIMEOUT:10000}   # 10 secondes en millisecondes
-        response-timeout: ${SOCKETIO_RESPONSE_TIMEOUT:120s}   # 120 secondes
-        # Wiretap pour debug (désactiver en prod)
-        wiretap: ${SOCKETIO_WIRETAP:false}
-        # Compression désactivée pour WebSocket et Socket.io
-        compression: false
+          max-idle-time: ${GATEWAY_MAX_IDLE_TIME:30s}
+          max-connections: ${GATEWAY_MAX_CONNECTIONS:500}
+          acquire-timeout: ${GATEWAY_ACQUIRE_TIMEOUT:30000}
+        connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:10000}
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:60s}
 
       # Configuration des métriques
       metrics:
-        enabled: ${SOCKETIO_METRICS_ENABLED:true}
+        enabled: ${GATEWAY_METRICS_ENABLED:true}
         tags:
           path:
             enabled: true
@@ -189,12 +103,8 @@ eureka:
     lease-expiration-duration-in-seconds: 30
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${random.uuid}
-    # Métadonnées pour WebSocket et Socket.io
     metadata-map:
-      websocket-enabled: true
-      websocket-path: /api/order/ws/websocket
-      socketio-enabled: true
-      socketio-port: ${SOCKETIO_PORT:9092}
+      gateway-enabled: true
 
 management:
   endpoints:
@@ -222,17 +132,16 @@ logging:
     io.netty.handler.codec.http.websocketx: ${WEBSOCKET_CODEC_LOG_LEVEL:INFO}
     com.bacos.mokengeli.biloko: ${APP_LOG_LEVEL:DEBUG}
 
-# Timeouts Reactor Netty pour WebSocket et Socket.io
+# Timeouts Reactor Netty
 reactor:
   netty:
     pool:
-      max-idle-time: ${NETTY_MAX_IDLE_TIME:120000}  # 2 minutes
-      max-life-time: ${NETTY_MAX_LIFE_TIME:600000}  # 10 minutes
+      max-idle-time: ${NETTY_MAX_IDLE_TIME:60000}
+      max-life-time: ${NETTY_MAX_LIFE_TIME:300000}
     http:
       server:
-        # Désactiver la compression pour WebSocket et Socket.io
-        compression: false
+        compression: ${GATEWAY_COMPRESSION:true}
 
-# Paths publics (incluant Socket.io)
+# Paths publics
 gateway:
-  public-paths: ${PUBLIC_PATHS:/public/**,/api/auth/login,/api/order/ws/test,/api/order/ws/status,/api/order/socketio/**,/socket.io/**}
+  public-paths: ${PUBLIC_PATHS:/public/**,/api/auth/login}
