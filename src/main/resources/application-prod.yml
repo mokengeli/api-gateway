@@ -9,8 +9,7 @@ server:
   port: ${SERVER_PORT}
   forward-headers-strategy: framework
   netty:
-    # Timeout plus long pour WebSocket
-    idle-timeout: PT60S
+    idle-timeout: ${GATEWAY_IDLE_TIMEOUT:PT30S}
 
 security:
   cors:
@@ -39,67 +38,56 @@ spring:
         enabled: false
       forwarded:
         enabled: true
-      # Routes - ORDRE IMPORTANT: WebSocket AVANT les routes standard
-      routes:
-        # Route WebSocket pour Order Service - DOIT ÊTRE EN PREMIER
-        - id: order-service-websocket
-          uri: ${ORDER_SERVICE_WS_URL:lb:ws://order-service}
-          predicates:
-            - Path=/api/order/ws/**
-          filters:
-            # Préserver le path et les headers pour WebSocket
-            - PreserveHostHeader
 
-        # Route standard pour Order Service
-        - id: order-service
-          uri: ${ORDER_SERVICE_URL:lb://order-service}
+      # Désactiver la découverte automatique des routes
+      discovery:
+        locator:
+          enabled: false
+
+      # Routes
+      routes:
+        # =============================================================================
+        # Order Service
+        # =============================================================================
+        - id: order-service-http
+          uri: lb://order-service
           predicates:
             - Path=/api/order/**
 
-        # Route pour Inventory Service
+        # =============================================================================
+        # Other Services
+        # =============================================================================
         - id: inventory-service
-          uri: ${INVENTORY_SERVICE_URL:lb://inventory-service}
+          uri: lb://inventory-service
           predicates:
             - Path=/api/inventory/**
 
-        # Route pour User Service
         - id: user-service
-          uri: ${USER_SERVICE_URL:lb://user-service}
+          uri: lb://user-service
           predicates:
             - Path=/api/user/**
 
-        # Route pour Authentication Service
         - id: authentication-service
-          uri: ${AUTH_SERVICE_URL:lb://authentication-service}
+          uri: lb://authentication-service
           predicates:
             - Path=/api/auth/**
 
-      # Configuration HTTP Client pour WebSocket
+      # Configuration HTTP Client
       httpclient:
-        # Configuration WebSocket
-        websocket:
-          # Taille max des frames WebSocket (640KB)
-          max-frame-payload-length: 655360
-          # Proxy automatique des sous-protocoles
-          proxy-ping: true
-        # Pool de connexions
         pool:
-          # Type de pool elastic pour WebSocket
           type: elastic
-          # Temps d'inactivité avant fermeture
-          max-idle-time: 30s
-          # Nombre max de connexions
-          max-connections: 500
-        # Timeouts de connexion
-        connect-timeout: 10000
-        # Timeout de réponse (60 secondes pour WebSocket)
-        response-timeout: 60s
-        # Compression (activée pour les requêtes HTTP standard)
-        compression: true
+          max-idle-time: ${GATEWAY_MAX_IDLE_TIME:30s}
+          max-connections: ${GATEWAY_MAX_CONNECTIONS:500}
+          acquire-timeout: ${GATEWAY_ACQUIRE_TIMEOUT:30000}
+        connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:10000}
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:60s}
 
       # Configuration des métriques
       metrics:
-        enabled: true
+        enabled: ${GATEWAY_METRICS_ENABLED:true}
+        tags:
+          path:
+            enabled: true
 
 eureka:
   client:
@@ -115,39 +103,45 @@ eureka:
     lease-expiration-duration-in-seconds: 30
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${random.uuid}
+    metadata-map:
+      gateway-enabled: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,gateway
+        include: health,info,metrics,gateway,routes
   endpoint:
     gateway:
-      access: read_only
+      access: unrestricted
+    routes:
+      enabled: true
 
 logging:
   level:
-    # Logging configurable via variables d'environnement
+    # Réduire les logs pour éviter les interférences
     org.springframework.cloud.gateway: ${LOG_LEVEL:INFO}
-    org.springframework.web.cors: ${LOG_LEVEL:INFO}
-    # Logging spécifique WebSocket (peut être activé si besoin)
-    org.springframework.web.reactive.socket: ${WEBSOCKET_LOG_LEVEL:INFO}
     org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: ${ROUTE_LOG_LEVEL:INFO}
-    reactor.netty.http.server: ${NETTY_LOG_LEVEL:INFO}
-    com.bacos.mokengeli.biloko.filter: ${FILTER_LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway.filter.factory: ${FILTER_LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway.route.RouteDefinitionRouteLocator: ${ROUTE_LOG_LEVEL:INFO}
+    org.springframework.web.reactive.socket: ${WEBSOCKET_LOG_LEVEL:INFO}
+    reactor.netty: ${NETTY_LOG_LEVEL:INFO}
+    reactor.netty.http.client: ${NETTY_CLIENT_LOG_LEVEL:INFO}
+    reactor.netty.http.server: ${NETTY_SERVER_LOG_LEVEL:INFO}
+    reactor.netty.channel: ${NETTY_CHANNEL_LOG_LEVEL:INFO}
+    io.netty.handler.codec.http.websocketx: ${WEBSOCKET_CODEC_LOG_LEVEL:INFO}
+    com.bacos.mokengeli.biloko: ${APP_LOG_LEVEL:DEBUG}
 
-# Timeouts Reactor Netty pour WebSocket
+# Timeouts Reactor Netty
 reactor:
   netty:
     pool:
-      # Temps d'inactivité max
-      max-idle-time: 60000
-      # Durée de vie max d'une connexion
-      max-life-time: 300000
+      max-idle-time: ${NETTY_MAX_IDLE_TIME:60000}
+      max-life-time: ${NETTY_MAX_LIFE_TIME:300000}
     http:
       server:
-        # Désactiver la compression pour WebSocket
-        compression: false
+        compression: ${GATEWAY_COMPRESSION:true}
 
+# Paths publics
 gateway:
-  public-paths: ${PUBLIC_PATHS:public/**,/api/auth/login}
+  public-paths: ${PUBLIC_PATHS:/public/**,/api/auth/login}
